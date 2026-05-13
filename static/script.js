@@ -7,7 +7,7 @@ function getErrorMessage(error) {
 
 function getApi() {
     if (!window.pulseDlApi) {
-        throw new Error("Electron preload API is unavailable. Start the app with Electron.");
+        throw new Error("Electron API is unavailable. Start the app with Electron.");
     }
     return window.pulseDlApi;
 }
@@ -26,22 +26,77 @@ const audioQualities = [
     { value: "128K", label: "128 kbps" }
 ];
 
+let completionResetTimer = null;
+
 function setText(id, value) {
-    document.getElementById(id).textContent = value;
+    const element = document.getElementById(id);
+    if (element) {
+        element.textContent = value;
+    }
 }
 
 function setProgress(progress) {
-    const percent = typeof progress.percent === "number" ? `${progress.percent.toFixed(1)}%` : "0%";
+    const rawPercent = typeof progress.percent === "number" ? progress.percent : 0;
+    const boundedPercent = Math.max(0, Math.min(100, rawPercent));
+    const percent = `${boundedPercent.toFixed(1)}%`;
     setText("progressPercent", percent);
     setText("progressSpeed", progress.speed || "-");
     setText("progressEta", progress.eta || "-");
+    setText("progressStage", progress.stage ? formatStage(progress.stage) : "Idle");
+
+    const progressFill = document.getElementById("progressFill");
+    if (progressFill) {
+        progressFill.style.width = percent;
+    }
+}
+
+function formatStage(stage) {
+    const stageLabels = {
+        starting: "Starting",
+        downloading: "Downloading",
+        processing: "Processing",
+        done: "Done",
+        error: "Error"
+    };
+    return stageLabels[stage] || "Idle";
+}
+
+function setStatus(message, type) {
+    const resultElement = document.getElementById("backendResult");
+    if (resultElement) {
+        resultElement.textContent = message;
+    }
+}
+
+function scheduleCompletionReset() {
+    if (completionResetTimer) {
+        window.clearTimeout(completionResetTimer);
+    }
+
+    completionResetTimer = window.setTimeout(function() {
+        setStatus("Ready for a new download.");
+        setProgress({ percent: 0 });
+        completionResetTimer = null;
+    }, 3500);
+}
+
+function showView(viewId) {
+    document.querySelectorAll(".app-view").forEach(function(view) {
+        const isActive = view.id === viewId;
+        view.hidden = !isActive;
+        view.classList.toggle("active", isActive);
+    });
+
+    document.querySelectorAll("[data-view-target]").forEach(function(button) {
+        button.classList.toggle("active", button.dataset.viewTarget === viewId);
+    });
 }
 
 function populateQualityOptions(format) {
     const qualitySelect = document.getElementById("qualitySelect");
     qualitySelect.innerHTML = "";
 
-    const options = format === "mp3" ? audioQualities : videoQualities;
+    const options = format === "mp3" || format === "flac" ? audioQualities : videoQualities;
     for (const item of options) {
         const option = document.createElement("option");
         option.value = item.value;
@@ -55,7 +110,7 @@ function createRequestId() {
 }
 
 function test() {
-    document.getElementById("result").innerHTML = "Message from JS file!";
+    setText("result", "Message from JS file!");
 }
 
 const formatSelect = document.getElementById("formatSelect");
@@ -65,6 +120,19 @@ const browseFolderButton = document.getElementById("browseFolderButton");
 const downloadButton = document.getElementById("downloadButton");
 
 populateQualityOptions(formatSelect.value);
+setProgress({ percent: 0 });
+
+if (!window.pulseDlApi) {
+    setStatus("Start the app with Electron to enable downloads.", "error");
+} else {
+    setStatus("Ready for a new download.", "success");
+}
+
+document.querySelectorAll("[data-view-target]").forEach(function(button) {
+    button.addEventListener("click", function() {
+        showView(button.dataset.viewTarget);
+    });
+});
 
 formatSelect.addEventListener("change", function() {
     populateQualityOptions(formatSelect.value);
@@ -77,18 +145,17 @@ browseFolderButton.addEventListener("click", async function() {
             outputDirInput.value = selected;
         }
     } catch (error) {
+        setStatus(`Folder error: ${getErrorMessage(error)}`, "error");
         console.error("Failed to choose folder:", error);
     }
 });
 
 document.getElementById("callBackend").addEventListener("click", async function() {
-    const resultElement = document.getElementById("backendResult");
-
     try {
         const data = await getApi().ping();
-        resultElement.innerHTML = `Response from backend: ${data.message}`;
+        setStatus(`Backend: ${data.message}`, "success");
     } catch (error) {
-        resultElement.innerHTML = `Error: ${getErrorMessage(error)}`;
+        setStatus(`Error: ${getErrorMessage(error)}`, "error");
         console.error(error);
     }
 });
@@ -99,16 +166,21 @@ downloadButton.addEventListener("click", async function() {
         const urlInput = document.getElementById("urlInput");
         const filenameTemplateInput = document.getElementById("filenameTemplateInput");
         const userUrl = urlInput.value.trim();
-        const resultElement = document.getElementById("backendResult");
         const requestId = createRequestId();
 
         if (!userUrl) {
-            resultElement.innerHTML = "Please enter a URL first.";
+            setStatus("Enter a URL before starting the download.");
+            urlInput.focus();
             return;
         }
 
-        setProgress({ percent: 0 });
-        resultElement.innerHTML = "Downloading... Please wait.";
+        if (completionResetTimer) {
+            window.clearTimeout(completionResetTimer);
+            completionResetTimer = null;
+        }
+
+        setProgress({ percent: 0, stage: "starting" });
+        setStatus("Download in progress...");
         downloadButton.disabled = true;
 
         unsubscribe = getApi().onDownloadProgress(function(progress) {
@@ -119,7 +191,11 @@ downloadButton.addEventListener("click", async function() {
             if (progress.stage === "downloading") {
                 setProgress(progress);
             } else if (progress.stage === "done") {
-                setProgress({ percent: 100, speed: "-", eta: "-" });
+                setProgress({ percent: 100, speed: "-", eta: "-", stage: "done" });
+            } else if (progress.stage === "processing" || progress.stage === "starting") {
+                setText("progressStage", formatStage(progress.stage));
+            } else if (progress.stage === "error") {
+                setProgress({ percent: 0, speed: "-", eta: "-", stage: "error" });
             }
         });
 
@@ -132,11 +208,14 @@ downloadButton.addEventListener("click", async function() {
             filenameTemplate: filenameTemplateInput.value.trim()
         });
 
-        resultElement.innerHTML = `Response from backend: ${data.message}`;
+        setStatus(data.message, data.status === "error" ? "error" : "success");
+        if (data.status === "success") {
+            scheduleCompletionReset();
+        }
         console.log("Backend replied:", data);
     } catch (error) {
-        const resultElement = document.getElementById("backendResult");
-        resultElement.innerHTML = `Error during download: ${getErrorMessage(error)}`;
+        setStatus(`Download error: ${getErrorMessage(error)}`, "error");
+        setProgress({ percent: 0, speed: "-", eta: "-", stage: "error" });
         console.error("Error during download:", error);
     } finally {
         if (unsubscribe) {

@@ -1,48 +1,187 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PulseDL</title>
-    <link rel="stylesheet" href="../static/style.css">
-</head>
-<body>
-    <h1>PulseDL</h1>
-    <p>Electron + yt-dlp desktop downloader</p>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>PulseDL</title>
+        <link rel="stylesheet" href="../static/style.css" />
+    </head>
+    <body>
+        <div class="app-shell">
+            <aside class="sidebar" aria-label="Application navigation">
+                <div class="sidebar-title">PulseDL</div>
 
-    <button onclick="test()">Call JS file</button>
-    <p id="result"></p>
+                <nav class="nav-list" aria-label="Main">
+                    <button
+                        class="nav-item active"
+                        type="button"
+                        data-view-target="download-view"
+                    >
+                        Download
+                    </button>
+                    <button
+                        class="nav-item"
+                        type="button"
+                        data-view-target="settings-view"
+                    >
+                        Settings
+                    </button>
+                </nav>
+            </aside>
 
-    <button id="callBackend">Call Electron backend</button><br><br>
-    
-    <input type="text" id="urlInput" placeholder="Enter URL to download (YouTube, etc.)"><br><br>
+            <main class="workspace">
+                <section
+                    class="app-view active"
+                    id="download-view"
+                    aria-labelledby="downloadTitle"
+                >
+                    <header class="view-header">
+                        <h2 id="downloadTitle">Download</h2>
+                        <button
+                            class="ghost-button"
+                            id="callBackend"
+                            type="button"
+                        >
+                            Check backend
+                        </button>
+                    </header>
 
-    <label for="formatSelect">Format:</label>
-    <select id="formatSelect">
-        <option value="best">Best</option>
-        <option value="mp4">MP4</option>
-        <option value="mp3">MP3</option>
-        <option value="flac">FLAC</option>
-    </select><br><br>
+                    <div class="panel command-panel">
+                        <div class="panel-header">
+                            <h3>Source</h3>
+                        </div>
 
-    <label for="qualitySelect">Quality:</label>
-    <select id="qualitySelect"></select><br><br>
+                        <div class="download-options">
+                            <label class="field" for="formatSelect">
+                                <span>Format</span>
+                                <select id="formatSelect">
+                                    <option value="best">Best</option>
+                                    <option value="mp4">MP4</option>
+                                    <option value="mp3">MP3</option>
+                                    <option value="flac">FLAC</option>
+                                </select>
+                            </label>
 
-    <label for="filenameTemplateInput">Filename template:</label>
-    <input type="text" id="filenameTemplateInput" value="%(title)s.%(ext)s"><br><br>
+                            <label class="field" for="qualitySelect">
+                                <span>Quality</span>
+                                <select id="qualitySelect"></select>
+                            </label>
+                        </div>
 
-    <label for="outputDirInput">Output folder:</label>
-    <input type="text" id="outputDirInput" placeholder="Default: system Downloads folder">
-    <button id="browseFolderButton">Browse</button><br><br>
+                        <div class="url-row">
+                            <label class="field grow" for="urlInput">
+                                <span>URL</span>
+                                <input
+                                    type="url"
+                                    id="urlInput"
+                                    placeholder="https://www.youtube.com/watch?v=..."
+                                    autocomplete="off"
+                                />
+                            </label>
+                            <button
+                                class="primary-button"
+                                id="downloadButton"
+                                type="button"
+                            >
+                                Download
+                            </button>
+                        </div>
+                    </div>
 
-    <button id="downloadButton">Download</button><br><br>
-    <div id="progressBox">
-        <div>Progress: <span id="progressPercent">0%</span></div>
-        <div>Speed: <span id="progressSpeed">-</span></div>
-        <div>ETA: <span id="progressEta">-</span></div>
-    </div><br>
-    <p id="backendResult"></p>
-    
-    <script src="../static/script.js"></script>
-</body>
+                    <div class="panel compact-progress">
+                        <div class="panel-header">
+                            <div>
+                                <h3>Status</h3>
+                                <p id="backendResult">
+                                    Ready for a new download.
+                                </p>
+                            </div>
+                            <output
+                                id="progressPercent"
+                                class="progress-percent"
+                                >0%</output
+                            >
+                        </div>
+                        <div class="progress-track" aria-hidden="true">
+                            <div id="progressFill" class="progress-fill"></div>
+                        </div>
+                        <dl class="status-details">
+                            <div>
+                                <dt>Speed</dt>
+                                <dd id="progressSpeed">-</dd>
+                            </div>
+                            <div>
+                                <dt>ETA</dt>
+                                <dd id="progressEta">-</dd>
+                            </div>
+                            <div>
+                                <dt>Stage</dt>
+                                <dd id="progressStage">Idle</dd>
+                            </div>
+                        </dl>
+                    </div>
+                </section>
+
+                <section
+                    class="app-view"
+                    id="settings-view"
+                    aria-labelledby="settingsTitle"
+                    hidden
+                >
+                    <header class="view-header">
+                        <h2 id="settingsTitle">Settings</h2>
+                    </header>
+
+                    <div class="settings-layout">
+                        <div class="panel">
+                            <div class="panel-header">
+                                <h3>Destination</h3>
+                            </div>
+
+                            <div class="field-stack">
+                                <label
+                                    class="field"
+                                    for="filenameTemplateInput"
+                                >
+                                    <span>Filename template</span>
+                                    <input
+                                        type="text"
+                                        id="filenameTemplateInput"
+                                        value="%(title)s.%(ext)s"
+                                        spellcheck="false"
+                                    />
+                                </label>
+
+                                <div class="browse-row">
+                                    <label
+                                        class="field grow"
+                                        for="outputDirInput"
+                                    >
+                                        <span>Output folder</span>
+                                        <input
+                                            type="text"
+                                            id="outputDirInput"
+                                            placeholder="Default: system Downloads folder"
+                                            spellcheck="false"
+                                        />
+                                    </label>
+                                    <button
+                                        class="secondary-button"
+                                        id="browseFolderButton"
+                                        type="button"
+                                    >
+                                        Browse
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <p id="result" class="sr-only" aria-live="polite"></p>
+            </main>
+        </div>
+
+        <script src="../static/script.js"></script>
+    </body>
 </html>
