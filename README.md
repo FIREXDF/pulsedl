@@ -20,3 +20,4 @@ Electron frontend for `yt-dlp` using Node.js and TypeScript.
 
 - Downloads are written to your system Downloads folder.
 - `yt-dlp` must be installed and available in your PATH.
+- To run `npm` you need to install NodeJS.
