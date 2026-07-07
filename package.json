@@ -6,11 +6,37 @@
   "scripts": {
     "build": "tsc",
     "start": "npm run build && electron .",
-    "dev": "npm run start"
+    "dev": "npm run start",
+    "pack": "npm run build && electron-builder --dir",
+    "dist": "npm run build && electron-builder --publish never"
+  },
+  "build": {
+    "appId": "com.pulsedl.app",
+    "productName": "PulseDL",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "templates/**/*",
+      "static/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
   },
   "devDependencies": {
     "@types/node": "^22.15.2",
     "electron": "^41.2.0",
+    "electron-builder": "^26.15.3",
     "typescript": "^5.8.3"
   }
 }
