@@ -26,23 +26,23 @@
       "target": [
         "nsis",
         "portable"
-      ],
-      "linux": {
-        "target": [
-          "deb",
-          "rpm"
-        ]
-      },
-      "mac": {
-        "target": [
-          "dmg",
-          "zip"
-        ]
-      }
+      ]
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ]
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ]
     }
   },
   "devDependencies": {

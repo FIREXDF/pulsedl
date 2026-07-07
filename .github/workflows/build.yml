@@ -9,8 +9,26 @@ on:
   workflow_dispatch:
 
 jobs:
-  windows:
-    runs-on: windows-latest
+  build:
+    name: Build ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows
+            os: windows-latest
+            args: --win --x64
+            artifact: pulsedl-windows
+          - name: Linux
+            os: ubuntu-latest
+            args: --linux --x64
+            artifact: pulsedl-linux
+          - name: macOS
+            os: macos-13
+            args: --mac --x64
+            artifact: pulsedl-macos
 
     steps:
       - name: Checkout
@@ -28,18 +46,12 @@ jobs:
       - name: Build TypeScript
         run: npm run build
 
-      - name: Build Windows app
-        run: npm run dist -- --win --x64
-
-      - name: Build Linux app
-        run: npm run dist -- --linux --x64
-
-      - name: Build Mac app
-        run: npm run dist -- --mac --x64
+      - name: Build app
+        run: npm run dist -- ${{ matrix.args }}
 
       - name: Upload installer artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: pulsedl-windows
+          name: ${{ matrix.artifact }}
           path: release/*
           if-no-files-found: error
