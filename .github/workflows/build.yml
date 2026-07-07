@@ -67,6 +67,7 @@ jobs:
             release/*.zip
             release/*.yml
           if-no-files-found: error
+          retention-days: 2
 
   release:
     name: Publish GitHub Release
